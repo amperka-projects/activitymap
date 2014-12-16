@@ -30,10 +30,10 @@ int[] doorwayState = {
 void setup()
 {
   size(800, 700);
-  port = new Serial(this, "COM14", 9600);
+  port = new Serial(this, "COM12", 9600);
   port.bufferUntil('\n');  
   textAlign(CENTER, CENTER);
-  textSize(20);
+  textSize(50);
 }
 
 void draw()
@@ -99,9 +99,13 @@ void drawRooms()
 
   fill(255);
 
-  for (int i = 0; i < 4; i++) {
-    text(persons[i].toString(), 20, 20+20*i);
-  }
+    text(persons[0].toString(),drawStart + roomWidth[0]/2, drawStart + roomHeight[0]/2);
+    text(persons[1].toString(),drawStart + roomWidth[0]+roomWidth[1]/2, drawStart + roomHeight[1]/2);
+    
+    text(persons[2].toString(),drawStart + roomWidth[0] + roomWidth[1]+roomWidth[2]/2, drawStart + roomHeight[2]/2);
+    text(persons[3].toString(),drawStart + roomWidth[0]+roomWidth[3]/2, drawStart + roomHeight[1] + roomWidth[3]/2);
+    
+
   
   text(OLDDATA, 200, 30);
 }
@@ -109,13 +113,7 @@ void drawRooms()
 boolean checkDoorway(int currentDoorway)
 {
   boolean result = false;
-/*  
-  if (doorwayState[currentDoorway] > 0) {
-    result = true;
-  }
-  
-  return result;
-*/
+
   switch(doorwayState[currentDoorway]) {
   case 1:
     result = true;
@@ -142,7 +140,7 @@ boolean checkDoorway(int currentDoorway)
 void serialEvent (Serial port)
 {
   try {
-    String data = port.readStringUntil('\r');
+    String data = port.readStringUntil('\n');
  /*   
     while (port.available() > 0) {
     int inByte = port.read();
@@ -157,6 +155,8 @@ void serialEvent (Serial port)
     //int[] doorway = int(split(data, ':'));
     
     Integer a = int(list[0]);
+    
+    //HARDCODE
     Integer b = int(list[1].substring(0, 1));
     
 
@@ -169,17 +169,9 @@ void serialEvent (Serial port)
     
     println(list[1]);
     println(b);
-    
-  
-    
-//    println("ggg");
-    
-//    println(doorway[0]);
-//    println(doorway[1]);
-    
-    
-    
+
   } 
+  
   catch (Exception e) {
     println("Connection...");
   }
