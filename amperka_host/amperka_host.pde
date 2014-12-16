@@ -88,11 +88,11 @@ void drawRooms()
   }
 
 
-  line(drawStart + roomWidth[0] + roomWidth[1] + roomWidth[2], drawStart + roomHeight[0] * 0.1, drawStart + roomWidth[0] + roomWidth[1] + roomWidth[2], 2 * doorwayWidth + drawStart + roomHeight[0] * 0.1);
+  line(drawStart + roomWidth[0] + roomWidth[1] + (roomWidth[2] - doorwayWidth)/2, drawStart + roomHeight[2], drawStart + roomWidth[0] + roomWidth[1] + doorwayWidth + (roomWidth[2] - doorwayWidth)/2, drawStart + roomHeight[2]);
 
   stroke(50);
 
-  line(drawStart + roomWidth[0] + roomWidth[1] + (roomWidth[2] - doorwayWidth)/2, drawStart + roomHeight[2], drawStart + roomWidth[0] + roomWidth[1] + doorwayWidth + (roomWidth[2] - doorwayWidth)/2, drawStart + roomHeight[2]);
+  line(drawStart + roomWidth[0] + roomWidth[1] + roomWidth[2], drawStart + roomHeight[0] * 0.1, drawStart + roomWidth[0] + roomWidth[1] + roomWidth[2], 2 * doorwayWidth + drawStart + roomHeight[0] * 0.1);
 
   line(drawStart + roomWidth[0], drawStart + roomHeight[0] + roomHeight[4] * 0.4, drawStart + roomWidth[0], doorwayWidth + drawStart + roomHeight[0] + roomHeight[4] * 0.4);
 
