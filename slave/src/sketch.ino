@@ -68,6 +68,8 @@ void setup(void)
 
     pinMode(2, OUTPUT);
     digitalWrite(2, LOW);
+
+    analogReference(INTERNAL);
 }
 
 unsigned char addr(void)
@@ -87,7 +89,7 @@ void loop(void)
 {
     static unsigned long n1 = 0, n2 = 0;
 
-    if(analogRead(A0) > 100)
+    if(analogRead(A0) > 500)
     {
         if(++n1 >= 20)
         {
@@ -98,7 +100,7 @@ void loop(void)
     }
     else n1 = 0;
     
-    if(analogRead(A1) > 100)
+    if(analogRead(A1) > 500)
     {
         if(++n2 >= 20)
         {
