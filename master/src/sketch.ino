@@ -7,8 +7,6 @@ void setup()
     Serial.begin(9600);
     Serial1.begin(1200);
 
-    while (!Serial) ;
-
     pinMode(2, OUTPUT);
 }
 
