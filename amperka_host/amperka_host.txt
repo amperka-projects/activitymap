@@ -1,0 +1,223 @@
+
+// Нам нужна работа с последовательным портом
+import processing.serial.*;
+Serial port;
+
+// Множитель размеров комнат. Нужен для простого масштабирования размеров
+int roomScale = 3;
+
+// Координата начала рисования по X и по Y
+int drawStart = 75;
+
+// ширина дверного проёма
+int doorwayWidth = 15 * roomScale;
+
+// массив ширин комнат
+int[] roomWidth = { 
+  130 * roomScale, 60 * roomScale, 25 * roomScale, 85 * roomScale, 130 * roomScale
+};
+// массив высот комнат
+int[] roomHeight = { 
+  100 * roomScale, 90 * roomScale, 90 * roomScale, 85 * roomScale, 75 * roomScale
+};
+
+// Количество человек в комнате хранится в этом массиве
+Integer[] persons = {
+  0, 0, 0, 0
+};
+// У нас три дверных проёма. Текущее состояние каждого проёма
+// хранится здесь. 0 - без изменения, 1 - кто-то вышел, 2 - кто-то вошёл
+int[] doorwayState = {
+  0, 0, 0
+};
+
+// Эта функция выполняется один раз при старте скетча
+void setup()
+{
+  // размер окна
+  size(800, 700);
+  // создаём последовательное соединение с Arduino на 17-м COM-порту
+  port = new Serial(this, "COM17", 9600);
+  // Данные из COM-порта буферизируются до тех пор, пока не придёт '\n'
+  port.bufferUntil('\n');  
+
+  // Координаты текстового поля задаются относительно центра текста
+  textAlign(CENTER, CENTER);
+  // размер текста
+  textSize(50);
+}
+
+ // Эта функция вызывается каждый раз, когда пришло время рисовать кадр
+ // Аналог loop() в Arduino
+void draw()
+{
+  // Закрашиваем всё окно чёрным цветом
+  background(0);
+
+  // Рисуем комнаты
+  drawRooms();  
+  
+}
+
+void drawRooms()
+{
+  // задаём белый цвет линий
+  stroke(255);
+
+  // ширина линий 10 px
+  strokeWeight(10);
+
+  // заливка объектов - серая
+  fill(150);
+
+  // рисуем прямоугольники комнат
+  rect(drawStart, drawStart, roomWidth[0], roomHeight[0]);
+
+  rect(drawStart + roomWidth[0], drawStart, roomWidth[1], roomHeight[1]);
+
+  rect(drawStart + roomWidth[0] + roomWidth[1], drawStart, roomWidth[2], roomHeight[2]);
+
+  rect(drawStart + roomWidth[0], drawStart + roomHeight[1], roomWidth[3], roomHeight[3]);
+
+  rect(drawStart, drawStart + roomHeight[0], roomWidth[4], roomHeight[4]);
+
+
+  // проверка состояния дверных проёмов в функции checkDoorway()
+  // если кто-то прошёл
+  if (checkDoorway(0)) {
+    //дверной проём будет красным
+    stroke(255, 0, 0);
+  } else {
+    // иначе - тёмно-серым
+    stroke(50);
+  }
+
+  // рисуем проём 
+  line(drawStart + roomWidth[0], drawStart + roomHeight[0] * 0.6, drawStart + roomWidth[0], doorwayWidth + drawStart + roomHeight[0] * 0.6);
+
+  // Далее всё то же самое. 
+  // Можно было это сделать в цикле, 
+  // но этот код писала торопливая мартышка.
+  // Так делать - плохо:)
+
+  if (checkDoorway(1)) {
+    stroke(255, 0, 0);
+  } else {
+    stroke(50);
+  }
+
+  line(drawStart + roomWidth[0] + roomWidth[1], drawStart + roomHeight[0] * 0.15, drawStart + roomWidth[0] + roomWidth[1], doorwayWidth + drawStart + roomHeight[0] * 0.15);
+
+  if (checkDoorway(2)) {
+    stroke(255, 0, 0);
+  } else {
+    stroke(50);
+  }
+
+
+  line(drawStart + roomWidth[0] + roomWidth[1] + (roomWidth[2] - doorwayWidth)/2, drawStart + roomHeight[2], drawStart + roomWidth[0] + roomWidth[1] + doorwayWidth + (roomWidth[2] - doorwayWidth)/2, drawStart + roomHeight[2]);
+
+  // Вот здесь цикл должен был закончится :)
+
+  // Рисуем дверные проёмы, которые не снабжены датчиками
+
+  stroke(50);
+
+  line(drawStart + roomWidth[0] + roomWidth[1] + roomWidth[2], drawStart + roomHeight[0] * 0.1, drawStart + roomWidth[0] + roomWidth[1] + roomWidth[2], 2 * doorwayWidth + drawStart + roomHeight[0] * 0.1);
+
+  line(drawStart + roomWidth[0], drawStart + roomHeight[0] + roomHeight[4] * 0.4, drawStart + roomWidth[0], doorwayWidth + drawStart + roomHeight[0] + roomHeight[4] * 0.4);
+
+  // В центрах комнат нарисуем количество человек в комнате
+  fill(255);
+
+    text(persons[0].toString(),drawStart + roomWidth[0]/2, drawStart + roomHeight[0]/2);
+    text(persons[1].toString(),drawStart + roomWidth[0]+roomWidth[1]/2, drawStart + roomHeight[1]/2);
+    
+    text(persons[2].toString(),drawStart + roomWidth[0] + roomWidth[1]+roomWidth[2]/2, drawStart + roomHeight[2]/2);
+    text(persons[3].toString(),drawStart + roomWidth[0]+roomWidth[3]/2, drawStart + roomHeight[1] + roomWidth[3]/2);
+  
+}
+
+// Проверка состояния дверного проёма под номером currentDoorway
+boolean checkDoorway(int currentDoorway)
+{
+  // Если никто не проходил - вернём false
+  boolean result = false;
+
+  
+  switch(doorwayState[currentDoorway]) {
+    //Если кто-то вышел из комнаты
+  case 1:
+    result = true; // состояние изменилось
+    // если в комнате было больше 0 человек
+    if (persons[currentDoorway] > 0) {
+      // отнимем одного человека из этой комнаты
+      persons[currentDoorway]--;
+    }
+      // и добавим его в соседнюю комнату
+    persons[currentDoorway+1]++;
+      // изменение состояния отработано, запомним это
+    doorwayState[currentDoorway] = 0;
+    break;
+  // Если кто-то вошел в комнату
+  case 2:
+    result = true; // состояние изменилось
+    // если в соседней комнате больше 0 человек
+    if (persons[currentDoorway+1] > 0) {
+      // отнимем одного человека из соседней комнаты
+      persons[currentDoorway+1]--;
+    }
+      // и добавим в другую комнату
+    persons[currentDoorway]++;
+      // изменение состояния отработано, запомним это
+    doorwayState[currentDoorway] = 0;
+    break;
+  }  
+  // Возвращаем состояние дверного проёма
+  return result;
+  
+}
+
+// Эта функция работает при получении байта из последовательного порта
+void serialEvent (Serial port)
+{
+
+  try {
+
+    // Читаем данные, пришедшие от Arduino 
+    String data = port.readStringUntil('\n');
+    
+    // формат посылки x:y, где x-номер дверного проёма,
+    // y - его статус. Разбиваем строку data на несколько строк, 
+    // используя ':' как разделитель
+    String[] list = split(data, ':');
+    // номер проёма будет содержаться в первой строке. Сразу переводим строку в число
+    Integer doorwayNumber = int(list[0]);
+    
+    // а статус проёма - во второй строке. Сразу переводим строку в число
+    // HARDCODE! substring(0, 1) - копирование подстроки размером в 1 символ из строки,
+    // начиная с 0-го символа. Просто у торопливой мартышки день не задался...
+    Integer state = int(list[1].substring(0, 1));
+    
+    // Сохраняем состояние дверного проёма
+    doorwayState[doorwayNumber] = state;
+
+    // пишем в консоль пришедшую информацию для отладки
+    println(data);
+    println(list[0]);
+    println(list[1]);
+
+  } 
+  
+  // Если что-то пошло не так
+  catch (Exception e) {
+    // скорее всего нет связи с Arduino
+    println("Connection...");
+  }
+}
+
+// Освободим последовательный порт при закрытии программы.
+void stop() {
+  port.clear();
+  port.stop();
+} 

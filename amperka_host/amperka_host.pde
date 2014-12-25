@@ -30,7 +30,7 @@ int[] doorwayState = {
 void setup()
 {
   size(800, 700);
-  port = new Serial(this, "COM12", 9600);
+  port = new Serial(this, "COM17", 9600);
   port.bufferUntil('\n');  
   textAlign(CENTER, CENTER);
   textSize(50);
@@ -41,6 +41,9 @@ void draw()
   background(0);
 
   drawRooms();
+  
+   
+  
 }
 
 void drawRooms()
