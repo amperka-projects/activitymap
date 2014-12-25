@@ -4,235 +4,88 @@
 
 ===== Что это такое? =====
 
+Сегодня мы разберёмся, как объединить дюжину ардуин в одну сеть и не пуститься по миру. Для выполнения этой сложнейшей задачи мы воспользуемся RS485-шилдами, которые позволяют развернуть сеть типа [[wpru>Шина_(топология_компьютерной_сети) | «общая шина»]]. Главным преимуществом такой сети является дешевизна развёртывания: вам не требуется прокладывать кабели к каждому узлу от маршрутизатора, да и сам этот маршрутизатор не требуется.
 ===== Что нам понадобится? =====
 
-Мастер-устройство:
-  - [[prod://arduino-leonardo | Arduino Leonardo]]
-  - [[prod://arduino-rs485-shield | DF Robot RS485-шилд]]
-  - [[prod://wall-plug-1a | Импульсный блок питания]]
+Ведущее устройство:
+  - [[amp>product/arduino-leonardo | Arduino Leonardo]]
+  - [[amp>product/arduino-rs485-shield | DF Robot RS485-шилд]]
+  - [[amp>product/wall-plug-1a | Импульсный блок питания]]
+  - [[amp>product/cables-wires | Кабель Micro USB]]
 
-Сенсор-устройство:
-  - [[prod://arduino-uno | Arduino Uno]]
-  - [[prod://arduino-rs485-shield | DF Robot RS485-шилд]]
-  - [[prod://breadboard-mini | Breadboard Mini]]
-  - [[prod://wire-mm | Провода «папа-папа»]]
-  - [[prod://infrared-range-meter-150 | Инфракрасный дальномер Sharp (20-150 см) ×2 шт]]
+Ведомое устройство:
+  - [[amp>product/arduino-uno | Arduino Uno]]
+  - [[amp>product/arduino-rs485-shield | DFRobot RS485-шилд]]
+  - [[amp>product/breadboard-mini | Breadboard Mini]]
+  - [[amp>product/wire-mm | Провода «папа-папа»]]
+  - [[amp>product/infrared-range-meter-150 | Инфракрасный дальномер Sharp (20-150 см) ×2 шт]]
 
 Также для прокладки сети вам потребуется медный провод сечением 0,5..1 мм.
 ===== Как это собрать? =====
-{{ :projects:activitymap:scheme.png?direct&700 |}}
+
+Для сборки ведущего устройства:
+
+  - Установите RS485-шилд на Arduino Leonardo.
+  - Подключите импульсный источник питания к Arduino Leonardo.
+  - Подключите линии «A» и «B» сети RS485 к клеммнику.
+  - Подключите линии «GND» и «VIN» сети RS485 к соответствующим выводам Arduino.
+  - Подключите USB-кабелем плату Arduino к ПК.
+
+Для сборки ведомого устройства:
+
+  - Установите Troyka-шилд на Arduino Uno.
+  - Установите RS485-шилд на Troyka-шилд.
+  - Подключите дальномеры к аналоговым тройкам A0 и A1.
+  - Подключите линии «A» и «B» сети RS485 к клеммнику.
+  - Подключите линии «GND» и «VIN» сети RS485 к соответствующим выводам Arduino.
+
+Прокладка сети:
+  - Воспользуйтесь витой парой или скрутите два провода в витую пару при помощи шуруповёрта.
+  - Протяните витую пару так, чтобы от неё до каждого из ваших устройств было расстояние не более 1 м.
+  - Соедините каждое устройство с линией. Разрывать её не обязательно. Можно воспользоваться таким способом: <картинко> В итоге у вас должна получиться приблизительно такая сеть:{{ :projects:activitymap:scheme.png?direct&700 |}}
+  - На всех платах установите переключатель выбора режима работы в ручной режим и включите передатчик (переключатель ON/OFF).
+
 ===== Исходный код =====
 
-==== Мастер-устройство ====
+==== Визуализация на Processing ====
+
+<code java activitymap.pde>
+</code>
+==== Ведущее устройство ====
 
 <code cpp master.ino>
-#define STATE_BEGIN    0
-#define STATE_SENDED   1
-#define STATE_RECEIVED 2
-
-void setup()
-{
-    Serial.begin(9600);
-    Serial1.begin(1200);
-
-    while (!Serial) ;
-
-    pinMode(2, OUTPUT);
-}
-
-int curDev = 0;
-
-int state = STATE_BEGIN;
-
-void loop()
-{
-    static unsigned long t;
-    byte msg[4] = { 0x03, 0x20, 0x00, 0x05 };
-
-    if(state == STATE_BEGIN)
-    {
-        msg[1] = 0x20 + curDev;
-
-        digitalWrite(2, HIGH);
-        Serial1.write((const byte*)msg, 4);
-        Serial1.flush();
-        digitalWrite(2, LOW);
-
-        state = STATE_SENDED;
-        t = millis();
-    }
-    else if(state == STATE_SENDED)
-    {
-        if(Serial1.available())
-        {
-            static byte imsg[4];
-
-            imsg[0] = imsg[1];
-            imsg[1] = imsg[2];
-            imsg[2] = imsg[3];
-            imsg[3] = Serial1.read();
-
-            if(imsg[0] == 0x03 && imsg[3] == 0x05)
-            {
-                Serial.print(curDev);
-                Serial.print(':');
-                Serial.println((int)(imsg[1]));
-                Serial.flush();
-                delay(1);
-
-                state = STATE_RECEIVED;
-            }
-        }
-        else if(millis()-t > 50) {
-            state = STATE_RECEIVED;
-        }
-    }
-    else if(state == STATE_RECEIVED)
-    {
-        if(++curDev == 15)
-        {
-            curDev = 0;
-        }
-
-        state = STATE_BEGIN;
-    }
-}
 </code>
 
-==== Сенсор-устройство ====
+==== Ведомые устройства ====
 
 <code cpp sensor.ino>
-signed long t1 = 0, t2 = 0;
-unsigned char dir = 0;
-
-#define BASE_ADDR 0x20
-#define MSG_LEN 4
-
-void sensor1()
-{
-    t1 = millis();
-
-    check_motion();
-}
-
-void sensor2()
-{
-    t2 = millis();
-
-    check_motion();
-}
-
-void check_motion()
-{
-    if(t1 == 0 || t2 == 0) return;
-
-    if(t2-t1 > 0)
-    {
-        tone(9, 100, 1000);
-        dir = 1;
-    }
-    else if(t1-t2 > 0)
-    {
-        tone(9, 300, 1000);
-        dir = 2;
-    }
-
-    t1 = t2 = 0;
-}
-
-void dispatch_msg(byte* msg)
-{
-    if(msg[1] != BASE_ADDR+addr()) return;
-
-    msg[0] = 0x03;
-    msg[1] = dir;
-    msg[2] = 0x00;
-    msg[3] = 0x05;
-
-    digitalWrite(2, HIGH);
-
-    Serial.write(msg, 4);
-    Serial.flush();
-
-    digitalWrite(2, LOW);
-
-    dir = 0;
-}
-
-void setup(void)
-{
-    Serial.begin(1200);
-
-    digitalWrite(13, LOW);
-    digitalWrite(4, HIGH);
-
-    pinMode(8,  INPUT);
-    pinMode(9,  INPUT);
-    pinMode(10, INPUT);
-
-    pinMode(2, OUTPUT);
-    digitalWrite(2, LOW);
-
-    analogReference(INTERNAL);
-}
-
-unsigned char addr(void)
-{
-    unsigned char a = 0x00;
-
-    if(digitalRead(8))  a |= 0x01;
-    if(digitalRead(9))  a |= 0x02;
-    if(digitalRead(10)) a |= 0x04;
-
-    return a;
-}
-
-byte msg[4];
-
-void loop(void)
-{
-    static unsigned long n1 = 0, n2 = 0;
-
-    if(analogRead(A0) > 500)
-    {
-        if(++n1 >= 20)
-        {
-            if(n1 > 20+1) n1--;
-
-            if(n1 == 20) sensor1();
-        }
-    }
-    else n1 = 0;
-    
-    if(analogRead(A1) > 500)
-    {
-        if(++n2 >= 20)
-        {
-            if(n2 > 20+1) n2--;
-
-            if(n2 == 20) sensor2();
-        }
-    }
-    else n2 = 0;
-
-    if(Serial.available())
-    {
-        int i;
-        byte b;
-
-        for(i = 0; i < MSG_LEN-1; i++)
-            msg[i] = msg[i+1];
-
-        msg[MSG_LEN-1] = Serial.read();
-
-        if(msg[0] == 0x03 && msg[3] == 0x05)
-        {
-            dispatch_msg(msg);
-        }
-    }
-}
 </code>
+
+===== Как это работает? =====
+
+Когда человек проходит через дверной проём, он сначала попадает в поле зрения одного датчика, а потом другого. По тому, какой датчик сработал первым, можно определить направление пересечения дверного проёма. Если мы подключимся к аналоговым пинам датчиков, то при проходе человека увидим примерно такую картину:
+
+{{ :projects:activitymap:signals.png?direct}}
+
+Всё, что выше Vref, скетч воспринимает как единицу. Остальное — как нули. Vref надо подбирать исходя из размеров дверных косяков и параметров датчиков.
+
+Каждый узел хранит количество проходов. При обнаружении пересечения дверного проёма устройство добавляет «1» к переменной, если человек прошёл в одну сторону, и отнимает «1» в обратном случае.
+
+Ведущее устройство циклически опрашивает все узлы, посылая пакет с номером устройства. Эти пакеты получают все ведомые устройства одновременно, однако отвечает только то устройство, номер которого указан в пакете. Номер устройства задаётся  выводами «8», «9», «10».
+
+В ответном пакете устройство сообщает ведущему устройству значение хранимой переменной проходов. После этого устройство обнуляет это значение. Если между двумя опросами одного устройства было два прохода в разные стороны, то эти события могут «ускользнуть» от ведущего. Чтобы этого не произошло опрос производится очень часто — десятки раз в секунду.
+
+Ведомые устройства никогда не начинают передачу по собственному желанию. Они только отвечают на запросы ведущего. Этим решается проблема [[wpru>Коллизия_кадров | коллизий]] на линии.
+
+Ведущее устройство основано на [[amp>product/arduino-leonardo | Arduino Leonardo]]. Это позволяет использовать одновременно RS485-шилд и общение по Serial между Arduino и ПК. Данные, собраные со всех ведомых устройств, передаются по Serial, где их получает Processing-программа и отображает в графическом виде. Она рисует план помещений и отображает в каждой комнате количество находящихся там человек.
+
+{{ :projects:activitymap:host_window.png?direct}}
+
+
+
 ===== Демонстрация работы устройства =====
 
 {{youtube>eRLrCk5RlPs?large}}
 ===== Что можно сделать ещё? =====
+
+  - В нашей реализации есть изъян: если опрос ведомого устройства будет происходить в момент прохода человека, то проход может остаться незамеченным. Чтобы избавиться от этого изъяна нужно подключать дальномеры через компараторы так, чтобы Arduino получала не аналоговый, а цифровой сигнал. Тогда на него можно будет назначить прерывание и обрабатывать события прохода по прерываниям.
